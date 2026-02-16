@@ -1,0 +1,87 @@
+name: Terraform Deploy
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'root-module/**'
+      - 'modules/**'
+  pull_request:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'root-module/**'
+      - 'modules/**'
+  workflow_dispatch:
+    inputs:
+      destroy:
+        description: 'Execute destroy workflow'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  TERRAFORM_VERSION: '1.6.0'
+  WORKING_DIRECTORY: 'root-module'
+
+jobs:
+  plan:
+    name: Terraform Plan
+    uses: ./.github/workflows/templates/terraform-plan.yml
+    with:
+      terraform_version: ${{ env.TERRAFORM_VERSION }}
+      working_directory: ${{ env.WORKING_DIRECTORY }}
+      backend_config: ''
+      terraform_variables: '{}'
+    secrets:
+      DATADOG_API_KEY: ${{ secrets.DATADOG_API_KEY }}
+      DATADOG_APP_KEY: ${{ secrets.DATADOG_APP_KEY }}
+
+  apply:
+    name: Terraform Apply
+    needs: plan
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    uses: ./.github/workflows/templates/terraform-apply.yml
+    with:
+      terraform_version: ${{ env.TERRAFORM_VERSION }}
+      working_directory: ${{ env.WORKING_DIRECTORY }}
+      backend_config: ''
+      terraform_variables: '{}'
+      auto_approve: true
+    secrets:
+      DATADOG_API_KEY: ${{ secrets.DATADOG_API_KEY }}
+      DATADOG_APP_KEY: ${{ secrets.DATADOG_APP_KEY }}
+
+  destroy-plan:
+    name: Terraform Destroy Plan
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.destroy == true
+    uses: ./.github/workflows/templates/terraform-destroy-plan.yml
+    with:
+      terraform_version: ${{ env.TERRAFORM_VERSION }}
+      working_directory: ${{ env.WORKING_DIRECTORY }}
+      backend_config: ''
+      terraform_variables: '{}'
+    secrets:
+      DATADOG_API_KEY: ${{ secrets.DATADOG_API_KEY }}
+      DATADOG_APP_KEY: ${{ secrets.DATADOG_APP_KEY }}
+
+  destroy-apply:
+    name: Terraform Destroy Apply
+    needs: destroy-plan
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.destroy == true
+    environment:
+      name: destroy-approval
+      url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    uses: ./.github/workflows/templates/terraform-destroy-apply.yml
+    with:
+      terraform_version: ${{ env.TERRAFORM_VERSION }}
+      working_directory: ${{ env.WORKING_DIRECTORY }}
+      backend_config: ''
+      terraform_variables: '{}'
+      auto_approve: true
+    secrets:
+      DATADOG_API_KEY: ${{ secrets.DATADOG_API_KEY }}
+      DATADOG_APP_KEY: ${{ secrets.DATADOG_APP_KEY }}

@@ -1,0 +1,74 @@
+name: Terraform Apply Template
+
+on:
+  workflow_call:
+    inputs:
+      terraform_version:
+        description: 'Terraform version to use'
+        required: false
+        type: string
+        default: '1.6.0'
+      working_directory:
+        description: 'Working directory for Terraform'
+        required: false
+        type: string
+        default: 'root-module'
+      backend_config:
+        description: 'Backend configuration variables'
+        required: false
+        type: string
+        default: ''
+      terraform_variables:
+        description: 'Terraform variables as JSON string'
+        required: false
+        type: string
+        default: '{}'
+      auto_approve:
+        description: 'Auto approve terraform apply'
+        required: false
+        type: boolean
+        default: true
+    secrets:
+      DATADOG_API_KEY:
+        required: true
+      DATADOG_APP_KEY:
+        required: true
+
+jobs:
+  terraform-apply:
+    name: Terraform Apply
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ inputs.terraform_version }}
+
+      - name: Terraform Init
+        working-directory: ${{ inputs.working_directory }}
+        run: |
+          terraform init ${{ inputs.backend_config }}
+        env:
+          TF_VAR_datadog_api_key: ${{ secrets.DATADOG_API_KEY }}
+          TF_VAR_datadog_app_key: ${{ secrets.DATADOG_APP_KEY }}
+
+      - name: Download Terraform Plan
+        uses: actions/download-artifact@v4
+        with:
+          name: terraform-plan
+          path: ${{ inputs.working_directory }}
+
+      - name: Terraform Apply
+        working-directory: ${{ inputs.working_directory }}
+        run: |
+          if [ "${{ inputs.auto_approve }}" = "true" ]; then
+            terraform apply -auto-approve tfplan
+          else
+            terraform apply tfplan
+          fi
+        env:
+          TF_VAR_datadog_api_key: ${{ secrets.DATADOG_API_KEY }}
+          TF_VAR_datadog_app_key: ${{ secrets.DATADOG_APP_KEY }}
