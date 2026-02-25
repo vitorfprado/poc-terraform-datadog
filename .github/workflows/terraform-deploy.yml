@@ -1,20 +1,7 @@
 name: Terraform Deploy
 
+# Trigger manual apenas (fase de testes). Reative push/pull_request quando for para produção.
 on:
-  push:
-    branches:
-      - main
-      - develop
-    paths:
-      - 'root-module/**'
-      - 'modules/**'
-  pull_request:
-    branches:
-      - main
-      - develop
-    paths:
-      - 'root-module/**'
-      - 'modules/**'
   workflow_dispatch:
     inputs:
       destroy:
@@ -84,7 +71,7 @@ jobs:
   apply:
     name: Terraform Apply
     needs: plan
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.event_name == 'workflow_dispatch' || (github.ref == 'refs/heads/main' && github.event_name == 'push')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
