@@ -5,14 +5,12 @@ on:
     inputs:
       terraform_version:
         description: 'Terraform version to use'
-        required: false
+        required: true
         type: string
-        default: '1.6.0'
       working_directory:
         description: 'Working directory for Terraform'
-        required: false
+        required: true
         type: string
-        default: 'root-module'
       backend_config:
         description: 'Backend configuration variables'
         required: false

@@ -23,17 +23,13 @@ on:
         type: boolean
         default: false
 
-env:
-  TERRAFORM_VERSION: '1.6.0'
-  WORKING_DIRECTORY: 'root-module'
-
 jobs:
   plan:
     name: Terraform Plan
     uses: ./.github/workflows/templates/terraform-plan.yml
     with:
-      terraform_version: ${{ env.TERRAFORM_VERSION }}
-      working_directory: ${{ env.WORKING_DIRECTORY }}
+      terraform_version: &tf_version 1.6.0
+      working_directory: &tf_working_dir root-module
       backend_config: ''
       terraform_variables: '{}'
     secrets:
@@ -46,8 +42,8 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     uses: ./.github/workflows/templates/terraform-apply.yml
     with:
-      terraform_version: ${{ env.TERRAFORM_VERSION }}
-      working_directory: ${{ env.WORKING_DIRECTORY }}
+      terraform_version: *tf_version
+      working_directory: *tf_working_dir
       backend_config: ''
       terraform_variables: '{}'
       auto_approve: true
@@ -60,8 +56,8 @@ jobs:
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.destroy == true
     uses: ./.github/workflows/templates/terraform-destroy-plan.yml
     with:
-      terraform_version: ${{ env.TERRAFORM_VERSION }}
-      working_directory: ${{ env.WORKING_DIRECTORY }}
+      terraform_version: *tf_version
+      working_directory: *tf_working_dir
       backend_config: ''
       terraform_variables: '{}'
     secrets:
@@ -77,8 +73,8 @@ jobs:
       url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
     uses: ./.github/workflows/templates/terraform-destroy-apply.yml
     with:
-      terraform_version: ${{ env.TERRAFORM_VERSION }}
-      working_directory: ${{ env.WORKING_DIRECTORY }}
+      terraform_version: *tf_version
+      working_directory: *tf_working_dir
       backend_config: ''
       terraform_variables: '{}'
       auto_approve: true
