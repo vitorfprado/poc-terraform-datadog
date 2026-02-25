@@ -1,14 +1,28 @@
 module "datadog_dashboard_poc" {
-  source = "../modules/dashboard/poc"
-  product_name = var.product_name  
-}
-
-module "datadog_monitor_p95" {
-  source = "../modules/monitors/latencia_p95"
-  product_name = var.product_name  
+  source       = "../modules/dashboard/poc"
+  product_name = var.product_name
 }
 
 module "datadog_monitor_erros_5xx" {
-  source = "../modules/monitors/erros_5xx"
-  product_name = var.product_name  
+  source       = "../modules/monitors/erros_5xx"
+  product_name = var.product_name
+}
+
+module "datadog_dashboard_requests" {
+  source         = "../modules/dashboard/requests"
+  product_name   = var.product_name
+  title          = "Dashboard de Requests - ${var.product_name}"
+  service        = "meu-service-prod"
+  resource_name  = "/minha/rota/*"
+  operation_name = "*"
+  http_url       = "*"
+}
+
+module "datadog_dashboard_pods" {
+  source       = "../modules/dashboard/pods"
+  product_name = var.product_name
+  title        = "Dashboard de Pods - ${var.product_name}"
+  cluster_name  = "meu-cluster-prod"
+  namespace     = "meu-namespace-prod"
+  deployment    = "meu-deployment-prod"
 }
