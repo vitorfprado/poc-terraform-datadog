@@ -1,13 +1,13 @@
 variable "datadog_api_key" {
-  description = "Datadog API key"
+  description = "Datadog API key. Pass via TF_VAR_datadog_api_key or -var (e.g. from GitHub Actions secrets)."
   type        = string
-  default     = "ac002c46f69bc9322ffd97b7fe73d98d"
+  sensitive   = true
 }
 
 variable "datadog_app_key" {
-  description = "Datadog Application key"
+  description = "Datadog Application key. Pass via TF_VAR_datadog_app_key or -var (e.g. from GitHub Actions secrets)."
   type        = string
-  default     = "eea060fcf2eb29a94a68b65df75eb7587cce05ac"
+  sensitive   = true
 }
 
 variable "product_name" {
