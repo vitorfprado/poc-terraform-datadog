@@ -33,6 +33,8 @@ locals {
       template_variables = local.dashboard_template_variables_patched
     }
   )
-}resource "datadog_dashboard_json" "requests" {
+}
+
+resource "datadog_dashboard_json" "requests" {
   dashboard = jsonencode(local.dashboard_final)
 }
