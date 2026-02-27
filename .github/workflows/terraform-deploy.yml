@@ -17,6 +17,7 @@ env:
 jobs:
   plan:
     name: Terraform Plan
+    if: github.event.inputs.destroy != 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -71,7 +72,7 @@ jobs:
   apply:
     name: Terraform Apply
     needs: plan
-    if: github.event_name == 'workflow_dispatch' || (github.ref == 'refs/heads/main' && github.event_name == 'push')
+    if: github.event.inputs.destroy != 'true' && (github.event_name == 'workflow_dispatch' || (github.ref == 'refs/heads/main' && github.event_name == 'push'))
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -106,7 +107,7 @@ jobs:
 
   destroy-plan:
     name: Terraform Destroy Plan
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.destroy == true
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.destroy == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -149,7 +150,7 @@ jobs:
   destroy-apply:
     name: Terraform Destroy Apply
     needs: destroy-plan
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.destroy == true
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.destroy == 'true'
     environment:
       name: destroy-approval
       url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
