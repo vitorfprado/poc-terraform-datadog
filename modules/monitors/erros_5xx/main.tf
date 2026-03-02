@@ -11,7 +11,7 @@ resource "datadog_monitor" "monitor_erros_5xx" {
   name = "${var.product_name} - APM - Erro 5xx no serviço ${var.service_name}"
   type = "query alert"
   query = <<EOT
-sum(last_5m):sum:trace.${var.operation_name}{http.status_code:5* , service:${var.service_name} , span.kind:server , ${v}} by {resource_name,http.status_code}.as_rate() > 5
+sum(last_5m):sum:trace.${var.operation_name}{http.status_code:5* , service:${var.service_name} , span.kind:server , env:${var.environment}} by {resource_name,http.status_code}.as_rate() > 5
 EOT
   message = <<EOT
  ****Descricao**: Acionar o time de Produção CRM para validação dos erros e acionamentos dos times necessários 

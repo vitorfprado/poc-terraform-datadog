@@ -3,6 +3,7 @@ module "datadog_monitor_erros_5xx" {
   product_name = var.product_name
   service_name = "meu-service-prod"
   operation_name = "minha-operacao"
+  environment = "production"
 }
 
 module "datadog_dashboard_requests" {
