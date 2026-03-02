@@ -32,6 +32,8 @@ jobs:
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ${{ env.TERRAFORM_VERSION }}
+          # Só falhar em erro real (exit 1). Exit 2 = plano com mudanças = sucesso (aprovação vem no apply).
+          terraform_wrapper: false
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -73,6 +75,10 @@ jobs:
         working-directory: ${{ env.WORKING_DIRECTORY }}
         run: |
           terraform plan -out=tfplan -no-color
+          plan_exit=$?
+          # Terraform: 0 = sem mudanças, 1 = erro, 2 = mudanças. Só falhar em erro (1).
+          [ $plan_exit -eq 1 ] && exit 1
+          exit 0
         env:
           TF_VAR_datadog_api_key: ${{ secrets.DATADOG_API_KEY }}
           TF_VAR_datadog_app_key: ${{ secrets.DATADOG_APP_KEY }}
