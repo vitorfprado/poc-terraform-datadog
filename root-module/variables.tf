@@ -13,5 +13,5 @@ variable "datadog_app_key" {
 variable "product_name" {
   description = "Nome do projeto"
   type        = string
-  default     = "POC"
+  default     = "POC-TEST"
 }
