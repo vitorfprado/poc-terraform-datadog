@@ -1,6 +1,8 @@
 module "datadog_monitor_erros_5xx" {
   source       = "../modules/monitors/erros_5xx"
   product_name = var.product_name
+  service_name = "meu-service-prod"
+  operation_name = "minha-operacao"
 }
 
 module "datadog_dashboard_requests" {
