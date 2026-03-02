@@ -122,7 +122,8 @@ O workflow usa dois environments para exigir aprovação antes de aplicar mudan�
 2. Selecione o workflow "Terraform Deploy"
 3. Clique em **Run workflow**
 4. Marque a opção **"Execute destroy workflow"**
-5. Execute o workflow
+5. No campo **"destroy_confirmation"**, digite exatamente **`DESTROY`** (em maiúsculas) para confirmar que você tem certeza — o destroy remove recursos de forma permanente
+6. Execute o workflow
 
 **Fluxo de Aprovação do Destroy:**
 1. O workflow executará o `destroy-plan` automaticamente
