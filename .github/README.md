@@ -22,17 +22,16 @@ Os reusable workflows são independentes e podem ser reutilizados em outros proj
 
 ### Inputs Comuns
 
-- `terraform_version`: Versão do Terraform a ser instalada (padrão: '1.6.0')
-- `working_directory`: Diretório onde o Terraform será executado (padrão: 'root-module')
-- `backend_config`: Configurações do backend do Terraform (string, padrão: '')
-- `terraform_variables`: Variáveis do Terraform como JSON string (padrão: '{}')
+- `terraform_version`: Versão do Terraform a ser instalada (ex.: '1.6.0')
+- `working_directory`: Diretório onde o Terraform será executado (ex.: 'root-module')
 
 ### Secrets Obrigatórios
 
-Todos os workflows requerem os seguintes secrets:
+Todos os templates requerem os seguintes secrets (repasse no workflow que chama o template):
 
-- `DATADOG_API_KEY`: Chave da API do Datadog
-- `DATADOG_APP_KEY`: Chave da aplicação do Datadog
+- `DATADOG_API_KEY`, `DATADOG_APP_KEY`: Datadog
+- `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`: AWS (backend S3 e credenciais)
+- `TF_STATE_BUCKET`, `TF_STATE_KEY`: Bucket e chave do state no S3
 
 ### Workflows Específicos
 
@@ -43,10 +42,7 @@ Executa `terraform plan` e publica o plano como artefato.
 - `plan_artifact_name`: Nome do artefato do plano (valor: 'terraform-plan')
 
 #### terraform-apply.yml
-Baixa o plano do artefato e executa `terraform apply`.
-
-**Inputs adicionais:**
-- `auto_approve`: Aprova automaticamente a aplicação (boolean, padrão: true)
+Baixa o plano do artefato e executa `terraform apply -auto-approve`. A aprovação manual é feita pelo environment no workflow chamador (ex.: `apply-approval`).
 
 #### terraform-destroy-plan.yml
 Executa `terraform plan -destroy` e publica o plano de destruição como artefato.
@@ -55,14 +51,11 @@ Executa `terraform plan -destroy` e publica o plano de destruição como artefat
 - `destroy_plan_artifact_name`: Nome do artefato do plano de destruição (valor: 'terraform-destroy-plan')
 
 #### terraform-destroy-apply.yml
-Baixa o plano de destruição do artefato e executa `terraform apply` para destruir recursos.
-
-**Inputs adicionais:**
-- `auto_approve`: Aprova automaticamente a destruição (boolean, padrão: true)
+Baixa o plano de destruição do artefato e executa `terraform apply` para destruir recursos. A aprovação manual é feita pelo environment no workflow chamador (ex.: `destroy-approval`).
 
 ## Workflow Principal
 
-O workflow principal (`terraform-deploy.yml`) está configurado com os seguintes jobs:
+O workflow principal (`terraform-deploy.yml`) **consome os templates** (reusable workflows) e orquestra os jobs:
 
 1. **plan**: Executa `terraform plan` em todas as branches e pull requests
 2. **apply**: Executa `terraform apply` após o plan bem-sucedido **com aprovação manual no environment `apply-approval`**
@@ -77,8 +70,10 @@ Configure os seguintes secrets no GitHub (Settings > Secrets and variables > Act
 
 - `DATADOG_API_KEY`: Chave da API do Datadog
 - `DATADOG_APP_KEY`: Chave da aplicação do Datadog
+- `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`: Credenciais do usuário de serviço para S3 (state) e uso nos templates
+- `TF_STATE_BUCKET`, `TF_STATE_KEY`: Nome do bucket e chave do state no S3
 
-**Importante**: Os secrets devem ser passados explicitamente para os reusable workflows usando `secrets:` no workflow principal.
+**Importante**: O workflow principal (`terraform-deploy.yml`) chama os reusable workflows (templates); os secrets são repassados explicitamente em cada job via `secrets:`.
 
 ### Variáveis de Ambiente
 
@@ -153,11 +148,14 @@ jobs:
     with:
       terraform_version: '1.6.0'
       working_directory: 'infrastructure'
-      backend_config: ''
-      terraform_variables: '{}'
     secrets:
       DATADOG_API_KEY: ${{ secrets.DATADOG_API_KEY }}
       DATADOG_APP_KEY: ${{ secrets.DATADOG_APP_KEY }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      TF_STATE_BUCKET: ${{ secrets.TF_STATE_BUCKET }}
+      TF_STATE_KEY: ${{ secrets.TF_STATE_KEY }}
 
   apply:
     needs: plan
@@ -165,12 +163,14 @@ jobs:
     with:
       terraform_version: '1.6.0'
       working_directory: 'infrastructure'
-      backend_config: ''
-      terraform_variables: '{}'
-      auto_approve: true
     secrets:
       DATADOG_API_KEY: ${{ secrets.DATADOG_API_KEY }}
       DATADOG_APP_KEY: ${{ secrets.DATADOG_APP_KEY }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      TF_STATE_BUCKET: ${{ secrets.TF_STATE_BUCKET }}
+      TF_STATE_KEY: ${{ secrets.TF_STATE_KEY }}
 ```
 
 ### Opção 2: Usar de um repositório remoto
@@ -187,6 +187,11 @@ jobs:
     secrets:
       DATADOG_API_KEY: ${{ secrets.DATADOG_API_KEY }}
       DATADOG_APP_KEY: ${{ secrets.DATADOG_APP_KEY }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      TF_STATE_BUCKET: ${{ secrets.TF_STATE_BUCKET }}
+      TF_STATE_KEY: ${{ secrets.TF_STATE_KEY }}
 ```
 
 ## Exemplo Completo de Uso
@@ -208,11 +213,14 @@ jobs:
     with:
       terraform_version: ${{ env.TERRAFORM_VERSION }}
       working_directory: ${{ env.WORKING_DIRECTORY }}
-      backend_config: '-backend-config="bucket=my-bucket"'
-      terraform_variables: '{}'
     secrets:
       DATADOG_API_KEY: ${{ secrets.DATADOG_API_KEY }}
       DATADOG_APP_KEY: ${{ secrets.DATADOG_APP_KEY }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      TF_STATE_BUCKET: ${{ secrets.TF_STATE_BUCKET }}
+      TF_STATE_KEY: ${{ secrets.TF_STATE_KEY }}
 
   apply:
     needs: plan
@@ -221,12 +229,14 @@ jobs:
     with:
       terraform_version: ${{ env.TERRAFORM_VERSION }}
       working_directory: ${{ env.WORKING_DIRECTORY }}
-      backend_config: ''
-      terraform_variables: '{}'
-      auto_approve: true
     secrets:
       DATADOG_API_KEY: ${{ secrets.DATADOG_API_KEY }}
       DATADOG_APP_KEY: ${{ secrets.DATADOG_APP_KEY }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      TF_STATE_BUCKET: ${{ secrets.TF_STATE_BUCKET }}
+      TF_STATE_KEY: ${{ secrets.TF_STATE_KEY }}
 ```
 
 ## Vantagens dos Reusable Workflows

@@ -23,190 +23,55 @@ jobs:
   plan:
     name: Terraform Plan
     if: github.event.inputs.destroy != 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: ${{ env.TERRAFORM_VERSION }}
-          # Só falhar em erro real (exit 1). Exit 2 = plano com mudanças = sucesso (aprovação vem no apply).
-          terraform_wrapper: false
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-
-      - name: Create backend config
-        working-directory: ${{ env.WORKING_DIRECTORY }}
-        run: |
-          echo 'bucket  = "${{ secrets.TF_STATE_BUCKET }}"' > backend.s3.hcl
-          echo 'key     = "${{ secrets.TF_STATE_KEY }}"' >> backend.s3.hcl
-          echo 'region  = "${{ secrets.AWS_REGION }}"' >> backend.s3.hcl
-          echo 'encrypt = true' >> backend.s3.hcl
-
-      - name: Terraform Init
-        working-directory: ${{ env.WORKING_DIRECTORY }}
-        run: |
-          terraform init -backend-config=backend.s3.hcl
-        env:
-          TF_VAR_datadog_api_key: ${{ secrets.DATADOG_API_KEY }}
-          TF_VAR_datadog_app_key: ${{ secrets.DATADOG_APP_KEY }}
-
-      - name: Terraform Format Check
-        working-directory: ${{ env.WORKING_DIRECTORY }}
-        run: terraform fmt -check
-        continue-on-error: true
-
-      - name: Terraform Validate
-        working-directory: ${{ env.WORKING_DIRECTORY }}
-        run: terraform validate
-        env:
-          TF_VAR_datadog_api_key: ${{ secrets.DATADOG_API_KEY }}
-          TF_VAR_datadog_app_key: ${{ secrets.DATADOG_APP_KEY }}
-
-      - name: Terraform Plan
-        id: plan
-        working-directory: ${{ env.WORKING_DIRECTORY }}
-        run: |
-          terraform plan -out=tfplan -no-color
-          plan_exit=$?
-          # Terraform: 0 = sem mudanças, 1 = erro, 2 = mudanças. Só falhar em erro (1).
-          [ $plan_exit -eq 1 ] && exit 1
-          exit 0
-        env:
-          TF_VAR_datadog_api_key: ${{ secrets.DATADOG_API_KEY }}
-          TF_VAR_datadog_app_key: ${{ secrets.DATADOG_APP_KEY }}
-
-      - name: Show Terraform Plan
-        working-directory: ${{ env.WORKING_DIRECTORY }}
-        run: terraform show -no-color tfplan
-        continue-on-error: true
-
-      - name: Upload Terraform Plan
-        uses: actions/upload-artifact@v4
-        with:
-          name: terraform-plan
-          path: ${{ env.WORKING_DIRECTORY }}/tfplan
-          retention-days: 5
+    uses: ./.github/workflows/templates/terraform-plan.yml
+    with:
+      terraform_version: ${{ env.TERRAFORM_VERSION }}
+      working_directory: ${{ env.WORKING_DIRECTORY }}
+    secrets:
+      DATADOG_API_KEY: ${{ secrets.DATADOG_API_KEY }}
+      DATADOG_APP_KEY: ${{ secrets.DATADOG_APP_KEY }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      TF_STATE_BUCKET: ${{ secrets.TF_STATE_BUCKET }}
+      TF_STATE_KEY: ${{ secrets.TF_STATE_KEY }}
 
   apply:
     name: Terraform Apply
     needs: plan
     if: github.event.inputs.destroy != 'true' && (github.event_name == 'workflow_dispatch' || (github.ref == 'refs/heads/main' && github.event_name == 'push'))
-    runs-on: ubuntu-latest
+    uses: ./.github/workflows/templates/terraform-apply.yml
     environment:
       name: apply-approval
       url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: ${{ env.TERRAFORM_VERSION }}
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-
-      - name: Create backend config
-        working-directory: ${{ env.WORKING_DIRECTORY }}
-        run: |
-          echo 'bucket  = "${{ secrets.TF_STATE_BUCKET }}"' > backend.s3.hcl
-          echo 'key     = "${{ secrets.TF_STATE_KEY }}"' >> backend.s3.hcl
-          echo 'region  = "${{ secrets.AWS_REGION }}"' >> backend.s3.hcl
-          echo 'encrypt = true' >> backend.s3.hcl
-
-      - name: Terraform Init
-        working-directory: ${{ env.WORKING_DIRECTORY }}
-        run: |
-          terraform init -backend-config=backend.s3.hcl
-        env:
-          TF_VAR_datadog_api_key: ${{ secrets.DATADOG_API_KEY }}
-          TF_VAR_datadog_app_key: ${{ secrets.DATADOG_APP_KEY }}
-
-      - name: Download Terraform Plan
-        uses: actions/download-artifact@v4
-        with:
-          name: terraform-plan
-          path: ${{ env.WORKING_DIRECTORY }}
-
-      - name: Terraform Apply
-        working-directory: ${{ env.WORKING_DIRECTORY }}
-        run: |
-          terraform apply -auto-approve tfplan
-        env:
-          TF_VAR_datadog_api_key: ${{ secrets.DATADOG_API_KEY }}
-          TF_VAR_datadog_app_key: ${{ secrets.DATADOG_APP_KEY }}
+    with:
+      terraform_version: ${{ env.TERRAFORM_VERSION }}
+      working_directory: ${{ env.WORKING_DIRECTORY }}
+    secrets:
+      DATADOG_API_KEY: ${{ secrets.DATADOG_API_KEY }}
+      DATADOG_APP_KEY: ${{ secrets.DATADOG_APP_KEY }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      TF_STATE_BUCKET: ${{ secrets.TF_STATE_BUCKET }}
+      TF_STATE_KEY: ${{ secrets.TF_STATE_KEY }}
 
   destroy-plan:
     name: Terraform Destroy Plan
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.destroy == 'true' && github.event.inputs.destroy_confirmation == 'DESTROY'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    uses: ./.github/workflows/templates/terraform-destroy-plan.yml
+    with:
+      terraform_version: ${{ env.TERRAFORM_VERSION }}
+      working_directory: ${{ env.WORKING_DIRECTORY }}
+    secrets:
+      DATADOG_API_KEY: ${{ secrets.DATADOG_API_KEY }}
+      DATADOG_APP_KEY: ${{ secrets.DATADOG_APP_KEY }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      TF_STATE_BUCKET: ${{ secrets.TF_STATE_BUCKET }}
+      TF_STATE_KEY: ${{ secrets.TF_STATE_KEY }}
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: ${{ env.TERRAFORM_VERSION }}
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-
-      - name: Create backend config
-        working-directory: ${{ env.WORKING_DIRECTORY }}
-        run: |
-          echo 'bucket  = "${{ secrets.TF_STATE_BUCKET }}"' > backend.s3.hcl
-          echo 'key     = "${{ secrets.TF_STATE_KEY }}"' >> backend.s3.hcl
-          echo 'region  = "${{ secrets.AWS_REGION }}"' >> backend.s3.hcl
-          echo 'encrypt = true' >> backend.s3.hcl
-
-      - name: Terraform Init
-        working-directory: ${{ env.WORKING_DIRECTORY }}
-        run: |
-          terraform init -backend-config=backend.s3.hcl
-        env:
-          TF_VAR_datadog_api_key: ${{ secrets.DATADOG_API_KEY }}
-          TF_VAR_datadog_app_key: ${{ secrets.DATADOG_APP_KEY }}
-
-      - name: Terraform Destroy Plan
-        id: plan
-        working-directory: ${{ env.WORKING_DIRECTORY }}
-        run: |
-          terraform plan -destroy -out=tfplan-destroy -no-color
-        env:
-          TF_VAR_datadog_api_key: ${{ secrets.DATADOG_API_KEY }}
-          TF_VAR_datadog_app_key: ${{ secrets.DATADOG_APP_KEY }}
-
-      - name: Show Terraform Destroy Plan
-        working-directory: ${{ env.WORKING_DIRECTORY }}
-        run: terraform show -no-color tfplan-destroy
-        continue-on-error: true
-
-      - name: Upload Terraform Destroy Plan
-        uses: actions/upload-artifact@v4
-        with:
-          name: terraform-destroy-plan
-          path: ${{ env.WORKING_DIRECTORY }}/tfplan-destroy
-          retention-days: 5
-
-  # Falha com mensagem clara se o usuário marcou destroy mas não digitou DESTROY no campo de confirmação.
   destroy-validation:
     name: Validar confirmação do Destroy
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.destroy == 'true' && github.event.inputs.destroy_confirmation != 'DESTROY'
@@ -221,52 +86,18 @@ jobs:
     name: Terraform Destroy Apply
     needs: destroy-plan
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.destroy == 'true' && github.event.inputs.destroy_confirmation == 'DESTROY'
+    uses: ./.github/workflows/templates/terraform-destroy-apply.yml
     environment:
       name: destroy-approval
       url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: ${{ env.TERRAFORM_VERSION }}
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-
-      - name: Create backend config
-        working-directory: ${{ env.WORKING_DIRECTORY }}
-        run: |
-          echo 'bucket  = "${{ secrets.TF_STATE_BUCKET }}"' > backend.s3.hcl
-          echo 'key     = "${{ secrets.TF_STATE_KEY }}"' >> backend.s3.hcl
-          echo 'region  = "${{ secrets.AWS_REGION }}"' >> backend.s3.hcl
-          echo 'encrypt = true' >> backend.s3.hcl
-
-      - name: Terraform Init
-        working-directory: ${{ env.WORKING_DIRECTORY }}
-        run: |
-          terraform init -backend-config=backend.s3.hcl
-        env:
-          TF_VAR_datadog_api_key: ${{ secrets.DATADOG_API_KEY }}
-          TF_VAR_datadog_app_key: ${{ secrets.DATADOG_APP_KEY }}
-
-      - name: Download Terraform Destroy Plan
-        uses: actions/download-artifact@v4
-        with:
-          name: terraform-destroy-plan
-          path: ${{ env.WORKING_DIRECTORY }}
-
-      - name: Terraform Destroy Apply
-        working-directory: ${{ env.WORKING_DIRECTORY }}
-        run: |
-          terraform apply -auto-approve tfplan-destroy
-        env:
-          TF_VAR_datadog_api_key: ${{ secrets.DATADOG_API_KEY }}
-          TF_VAR_datadog_app_key: ${{ secrets.DATADOG_APP_KEY }}
+    with:
+      terraform_version: ${{ env.TERRAFORM_VERSION }}
+      working_directory: ${{ env.WORKING_DIRECTORY }}
+    secrets:
+      DATADOG_API_KEY: ${{ secrets.DATADOG_API_KEY }}
+      DATADOG_APP_KEY: ${{ secrets.DATADOG_APP_KEY }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      TF_STATE_BUCKET: ${{ secrets.TF_STATE_BUCKET }}
+      TF_STATE_KEY: ${{ secrets.TF_STATE_KEY }}
