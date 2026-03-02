@@ -65,9 +65,9 @@ Baixa o plano de destruição do artefato e executa `terraform apply` para destr
 O workflow principal (`terraform-deploy.yml`) está configurado com os seguintes jobs:
 
 1. **plan**: Executa `terraform plan` em todas as branches e pull requests
-2. **apply**: Executa `terraform apply` apenas na branch `main` após o plan bem-sucedido
+2. **apply**: Executa `terraform apply` após o plan bem-sucedido **com aprovação manual no environment `apply-approval`**
 3. **destroy-plan**: Executa `terraform plan -destroy` quando acionado manualmente com `destroy: true`
-4. **destroy-apply**: Executa `terraform destroy` após destroy-plan bem-sucedido **com aprovação manual obrigatória**
+4. **destroy-apply**: Executa o apply do destroy após destroy-plan bem-sucedido **com aprovação manual no environment `destroy-approval`**
 
 ## Configuração
 
@@ -87,22 +87,36 @@ O workflow usa as seguintes variáveis de ambiente (podem ser sobrescritas):
 - `TERRAFORM_VERSION`: Versão do Terraform (padrão: '1.6.0')
 - `WORKING_DIRECTORY`: Diretório de trabalho (padrão: 'root-module')
 
-### Configuração do Environment para Aprovação Manual
+### Configuração dos Environments para Aprovação Manual
 
-Para habilitar a aprovação manual antes do destroy, você precisa configurar um environment no GitHub:
+O workflow usa dois environments para exigir aprovação antes de aplicar mudanças:
+
+| Environment        | Quando é usado | Descrição                          |
+|--------------------|----------------|------------------------------------|
+| `apply-approval`   | Após o **plan** (deploy normal) | Pausa até aprovação antes do `terraform apply` |
+| `destroy-approval` | Após o **destroy-plan**         | Pausa até aprovação antes do destroy apply     |
+
+**Como configurar cada environment:**
 
 1. Vá em **Settings** > **Environments** no seu repositório
 2. Clique em **New environment**
-3. Nomeie como `destroy-approval`
-4. Em **Required reviewers**, adicione os usuários ou equipes que devem aprovar
-5. (Opcional) Configure um tempo de espera para aprovação
-6. Salve o environment
+3. Crie os dois environments com os nomes exatos: `apply-approval` e `destroy-approval`
+4. Em cada um, em **Required reviewers**, adicione os usuários ou equipes que devem aprovar
+5. (Opcional) Configure tempo de espera para aprovação
+6. Salve
 
-**Importante**: Sem configurar o environment `destroy-approval`, o workflow falhará ao tentar executar o destroy-apply.
+**Importante**: Sem criar os environments com esses nomes, o workflow falhará ao tentar executar o job **apply** ou **destroy-apply**.
 
 ### Acionamento Manual e Aprovação
 
-Para executar o destroy workflow:
+**Fluxo normal (plan → apply):**
+1. Dispare o workflow (manual ou push na `main`)
+2. O **plan** roda e gera o plano
+3. O workflow **pausa** no environment `apply-approval`
+4. Um revisor aprovado deve clicar em **Review deployments** e aprovar
+5. Após aprovação, o **apply** é executado
+
+**Para executar o destroy workflow:**
 
 1. Vá para **Actions** no GitHub
 2. Selecione o workflow "Terraform Deploy"
@@ -110,10 +124,10 @@ Para executar o destroy workflow:
 4. Marque a opção **"Execute destroy workflow"**
 5. Execute o workflow
 
-**Fluxo de Aprovação:**
+**Fluxo de Aprovação do Destroy:**
 1. O workflow executará o `destroy-plan` automaticamente
-2. Após o plan ser concluído, o workflow **pausará** aguardando aprovação
-3. Um revisor configurado no environment `destroy-approval` deve **aprovar manualmente**
+2. Após o plan ser concluído, o workflow **pausará** aguardando aprovação no environment `destroy-approval`
+3. Um revisor configurado deve **aprovar manualmente** (Review deployments)
 4. Após a aprovação, o `destroy-apply` será executado
 
 ## Uso em Outros Projetos
