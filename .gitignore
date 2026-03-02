@@ -1,0 +1,15 @@
+# Terraform
+.terraform/
+.terraform.lock.hcl
+*.tfplan
+*.tfplan-destroy
+*.tfstate
+*.tfstate.*
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Backend S3 config (contém dados do bucket; use backend.s3.example.hcl como modelo)
+root-module/backend.s3.hcl

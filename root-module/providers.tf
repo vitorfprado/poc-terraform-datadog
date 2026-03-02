@@ -5,6 +5,8 @@ terraform {
       version = "3.88.0"
     }
   }
+
+  backend "s3" {}
 }
 
 provider "datadog" {
