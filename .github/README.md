@@ -1,22 +1,25 @@
 # GitHub Actions - Terraform Pipelines
 
-Este diretório contém os templates de pipeline reutilizáveis (reusable workflows) para deploy do Terraform usando GitHub Actions.
+Fluxos de trabalho reutilizáveis (reusable workflows) para deploy do Terraform, organizados conforme a [documentação oficial do GitHub](https://docs.github.com/pt/actions/how-tos/reuse-automations/reuse-workflows).
+
+Os reusable workflows ficam no diretório `.github/workflows` do repositório; **subdiretórios não são suportados** pelo GitHub.
 
 ## Estrutura
 
 ```
 .github/
 ├── workflows/
-│   ├── templates/
-│   │   ├── terraform-plan.yml          # Reusable workflow para Terraform Plan
-│   │   ├── terraform-apply.yml         # Reusable workflow para Terraform Apply
-│   │   ├── terraform-destroy-plan.yml  # Reusable workflow para Terraform Destroy Plan
-│   │   └── terraform-destroy-apply.yml # Reusable workflow para Terraform Destroy Apply
-│   └── terraform-deploy.yml            # Workflow principal que consome os templates
-└── README.md                            # Este arquivo
+│   ├── terraform-plan.yml          # Reusable workflow (workflow_call) — Terraform Plan
+│   ├── terraform-apply.yml          # Reusable workflow — Terraform Apply
+│   ├── terraform-destroy-plan.yml  # Reusable workflow — Terraform Destroy Plan
+│   ├── terraform-destroy-apply.yml # Reusable workflow — Terraform Destroy Apply
+│   └── terraform-deploy.yml        # Workflow chamador que invoca os reutilizáveis
+└── README.md
 ```
 
-## Reusable Workflows (Templates)
+**Chamada (mesmo repositório):** `./.github/workflows/{filename}` no job, com `with:` e `secrets:` para passar inputs e segredos.
+
+## Reusable Workflows
 
 Os reusable workflows são independentes e podem ser reutilizados em outros projetos. Cada workflow aceita os seguintes inputs:
 
@@ -27,7 +30,7 @@ Os reusable workflows são independentes e podem ser reutilizados em outros proj
 
 ### Secrets Obrigatórios
 
-Todos os templates requerem os seguintes secrets (repasse no workflow que chama o template):
+Os reusable workflows exigem os seguintes secrets (declare em `on.workflow_call.secrets` e repasse no job chamador com `secrets:`):
 
 - `DATADOG_API_KEY`, `DATADOG_APP_KEY`: Datadog
 - `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`: AWS (backend S3 e credenciais)
@@ -73,7 +76,7 @@ Configure os seguintes secrets no GitHub (Settings > Secrets and variables > Act
 - `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`: Credenciais do usuário de serviço para S3 (state) e uso nos templates
 - `TF_STATE_BUCKET`, `TF_STATE_KEY`: Nome do bucket e chave do state no S3
 
-**Importante**: O workflow principal (`terraform-deploy.yml`) chama os reusable workflows (templates); os secrets são repassados explicitamente em cada job via `secrets:`.
+**Importante**: O workflow chamador repassa inputs com `with:` e segredos com `secrets:` a cada job que invoca um reusable workflow. Ver [Passing inputs and secrets to a reusable workflow](https://docs.github.com/pt/actions/how-tos/reuse-automations/reuse-workflows#passing-inputs-and-secrets-to-a-reusable-workflow).
 
 ### Variáveis de Ambiente
 
@@ -132,8 +135,8 @@ Para usar estes reusable workflows em outros projetos:
 
 ### Opção 1: Copiar para o novo projeto
 
-1. Copie a pasta `.github/workflows/templates/` para o novo projeto
-2. Crie um workflow que consuma os templates:
+1. Copie os arquivos de reusable workflow (terraform-plan.yml, terraform-apply.yml, etc.) de `.github/workflows/` para o novo projeto. O GitHub exige que reusable workflows fiquem em `.github/workflows/` (sem subpastas).
+2. Crie um workflow chamador que invoque os reusable workflows com `uses: ./.github/workflows/{filename}`:
 
 ```yaml
 name: Deploy Infrastructure
@@ -144,7 +147,7 @@ on:
 
 jobs:
   plan:
-    uses: ./.github/workflows/templates/terraform-plan.yml
+    uses: ./.github/workflows/terraform-plan.yml
     with:
       terraform_version: '1.6.0'
       working_directory: 'infrastructure'
@@ -159,7 +162,7 @@ jobs:
 
   apply:
     needs: plan
-    uses: ./.github/workflows/templates/terraform-apply.yml
+    uses: ./.github/workflows/terraform-apply.yml
     with:
       terraform_version: '1.6.0'
       working_directory: 'infrastructure'
@@ -180,7 +183,7 @@ Se você publicar os workflows em um repositório separado:
 ```yaml
 jobs:
   plan:
-    uses: seu-org/terraform-workflows/.github/workflows/templates/terraform-plan.yml@main
+    uses: seu-org/terraform-workflows/.github/workflows/terraform-plan.yml@main
     with:
       terraform_version: '1.6.0'
       working_directory: 'infrastructure'
@@ -209,7 +212,7 @@ env:
 
 jobs:
   plan:
-    uses: ./.github/workflows/templates/terraform-plan.yml
+    uses: ./.github/workflows/terraform-plan.yml
     with:
       terraform_version: ${{ env.TERRAFORM_VERSION }}
       working_directory: ${{ env.WORKING_DIRECTORY }}
@@ -225,7 +228,7 @@ jobs:
   apply:
     needs: plan
     if: github.ref == 'refs/heads/main'
-    uses: ./.github/workflows/templates/terraform-apply.yml
+    uses: ./.github/workflows/terraform-apply.yml
     with:
       terraform_version: ${{ env.TERRAFORM_VERSION }}
       working_directory: ${{ env.WORKING_DIRECTORY }}
@@ -247,8 +250,13 @@ jobs:
 - **Outputs entre workflows**: Possibilidade de passar outputs entre workflows chamados
 - **Environments**: Suporte completo a environments e aprovações manuais
 
+## Referência
+
+- **[Reutilizar fluxos de trabalho](https://docs.github.com/pt/actions/how-tos/reuse-automations/reuse-workflows)** — documentação oficial do GitHub (Creating a reusable workflow, Calling a reusable workflow, Passing inputs and secrets).
+
 ## Notas
 
+- **Linter/IDE**: Jobs que chamam reusable workflow usam apenas `uses`, `with` e `secrets` (sem `runs-on` nem `steps`). Avisos como "Required property is missing: runs-on" ou "Unexpected value 'uses'" são falsos positivos de alguns validadores; o workflow está correto conforme a [documentação do GitHub](https://docs.github.com/pt/actions/how-tos/reuse-automations/reuse-workflows#calling-a-reusable-workflow).
 - Os reusable workflows executam em runners separados (cada um tem seu próprio `runs-on`)
 - As variáveis do Datadog são automaticamente configuradas via secrets passados explicitamente
 - Os planos são mantidos por 5 dias como artefatos
