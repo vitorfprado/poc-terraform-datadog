@@ -1,13 +1,3 @@
-module "datadog_dashboard_poc" {
-  source       = "../modules/dashboard/poc"
-  product_name = var.product_name
-}
-
-module "datadog_monitor_erros_5xx" {
-  source       = "../modules/monitors/erros_5xx"
-  product_name = var.product_name
-}
-
 module "datadog_dashboard_requests" {
   source         = "../modules/dashboard/requests"
   product_name   = var.product_name
@@ -25,4 +15,14 @@ module "datadog_dashboard_pods" {
   cluster_name  = "meu-cluster-prod"
   namespace     = "meu-namespace-prod"
   deployment    = "meu-deployment-prod"
+}
+
+module "datadog_dashboard_rds_mysql" {
+  source       = "../modules/dashboard/rds-mysql"
+  product_name = var.product_name
+  title        = "Dashboard de RDS MySQL - ${var.product_name}"
+  account      = "*"
+  region       = "*"
+  dbinstance   = "meu-db-instance-prod"
+  dbcluster    = "meu-db-cluster-prod"
 }
