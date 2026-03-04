@@ -9,7 +9,7 @@ module "datadog_dashboard_requests" {
 }
 
 module "datadog_dashboard_pods" {
-  source       = "../modules/pods/dashboards"
+  source       = "../modules/eks/dashboards"
   product_name = var.product_name
   title        = "Dashboard de Pods - ${var.product_name}"
   cluster_name  = "meu-cluster-prod"
@@ -18,7 +18,7 @@ module "datadog_dashboard_pods" {
 }
 
 module "datadog_monitors" {
-  source       = "../modules/pods/monitors"
+  source       = "../modules/eks/monitors"
   product_name = var.product_name
   title        = "Dashboard de Pods - ${var.product_name}"
   cluster_name  = "meu-cluster-prod"
